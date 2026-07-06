@@ -47,10 +47,10 @@ MILESTONES = {5, 10, 15, 20, 25, 30, 40, 50, 75, 100}
 FOOD_ITEMS = ["@", "♦", "♥", "★", "●", "◆", "▲", "♣", "⬟"]
 
 DIFFICULTIES = {
-    "1": {"name": "Easy",   "speed": 0.18},
-    "2": {"name": "Medium", "speed": 0.12},
-    "3": {"name": "Hard",   "speed": 0.07},
-    "4": {"name": "INSANE", "speed": 0.04},
+    "1": {"name": "Easy",   "speed": 1, "interval": 0.18},
+    "2": {"name": "Medium", "speed": 2, "interval": 0.12},
+    "3": {"name": "Hard",   "speed": 3, "interval": 0.07},
+    "4": {"name": "INSANE", "speed": 4, "interval": 0.04},
 }
 
 HIGH_SCORE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".snake_highscore")
@@ -112,7 +112,7 @@ class SnakeGame:
         self.direction = "RIGHT"
         self.next_direction = "RIGHT"
         self.score = 0
-        self.speed = DIFFICULTIES[self.difficulty]["speed"]
+        self.speed = DIFFICULTIES[self.difficulty]["interval"]
         self.popup_pos = None
         self.popup_timer = 0
         self.toast_msg = None
@@ -159,7 +159,7 @@ class SnakeGame:
             sys.stdout.write(f"\n{C_INSTR}  DIFFICULTY:{RESET}\n")
             for key, diff in DIFFICULTIES.items():
                 marker = "●" if self.difficulty == key else "○"
-                sys.stdout.write(f"    [{key}] {marker} {diff['name']:8}\n")
+                sys.stdout.write(f"    [{key}] {marker} {diff['name']:8}  (Speed {diff['speed']})\n")
             sys.stdout.write(f"\n{C_INSTR}  [1-4] Select   [Enter] Start{RESET}")
             sys.stdout.flush()
             key = msvcrt.getch()

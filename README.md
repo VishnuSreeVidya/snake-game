@@ -28,10 +28,10 @@ A colorful terminal-based Snake game for **Windows** with rainbow visuals, multi
 
 | Key | Level | Speed | Feel |
 |-----|-------|-------|------|
-| `1` | Easy | 0.18s | Relaxed, great for beginners |
-| `2` | Medium | 0.12s | Balanced default |
-| `3` | Hard | 0.07s | Fast, needs quick reflexes |
-| `4` | INSANE | 0.04s | Blazing fast — you've been warned |
+| `1` | Easy | 1 | Relaxed, great for beginners |
+| `2` | Medium | 2 | Balanced default |
+| `3` | Hard | 3 | Fast, needs quick reflexes |
+| `4` | INSANE | 4 | Blazing fast — you've been warned |
 
 Select at the **start screen** by pressing `1`–`4`, then press **Enter** to begin.
 

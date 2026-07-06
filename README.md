@@ -6,6 +6,10 @@ A colorful terminal-based Snake game for Windows with rainbow visuals, milestone
 
 - Rainbow-colored snake body
 - Animated food with various symbols
+- 4 difficulty levels (Easy, Medium, Hard, INSANE)
+- Floating `+1` popup animation when eating food
+- Death animation (snake flashes red before game over)
+- Blinking pause indicator
 - Score milestones with toast notifications (`+1` popups, milestone messages like `🔥 5!`)
 - Persistent high score (saved to `.snake_highscore`)
 - Pause, restart, and quit controls

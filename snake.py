@@ -46,6 +46,13 @@ MILESTONES = {5, 10, 15, 20, 25, 30, 40, 50, 75, 100}
 
 FOOD_ITEMS = ["@", "♦", "♥", "★", "●", "◆", "▲", "♣", "⬟"]
 
+DIFFICULTIES = {
+    "1": {"name": "Easy",   "speed": 0.18},
+    "2": {"name": "Medium", "speed": 0.12},
+    "3": {"name": "Hard",   "speed": 0.07},
+    "4": {"name": "INSANE", "speed": 0.04},
+}
+
 HIGH_SCORE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".snake_highscore")
 
 
@@ -90,6 +97,7 @@ class SnakeGame:
         self.food_char = None
         self.score = 0
         self.high_score = load_high_score()
+        self.difficulty = "2"
         self.speed = 0.12
         self.popup_pos = None
         self.popup_timer = 0
@@ -104,7 +112,7 @@ class SnakeGame:
         self.direction = "RIGHT"
         self.next_direction = "RIGHT"
         self.score = 0
-        self.speed = 0.12
+        self.speed = DIFFICULTIES[self.difficulty]["speed"]
         self.popup_pos = None
         self.popup_timer = 0
         self.toast_msg = None
@@ -146,9 +154,25 @@ class SnakeGame:
         sys.stdout.write("\n")
         self.draw_instructions()
         sys.stdout.write(f"\n\n{C_SCORE}  HIGH SCORE: {self.high_score}{RESET}")
-        sys.stdout.write(f"\n\n{C_INSTR}  Press any key to start...{RESET}")
         sys.stdout.flush()
-        msvcrt.getch()
+        while True:
+            sys.stdout.write(f"\n{C_INSTR}  DIFFICULTY:{RESET}\n")
+            for key, diff in DIFFICULTIES.items():
+                marker = "●" if self.difficulty == key else "○"
+                sys.stdout.write(f"    [{key}] {marker} {diff['name']:8}\n")
+            sys.stdout.write(f"\n{C_INSTR}  [1-4] Select   [Enter] Start{RESET}")
+            sys.stdout.flush()
+            key = msvcrt.getch()
+            try:
+                c = key.decode("utf-8")
+                if c in DIFFICULTIES:
+                    self.difficulty = c
+                    sys.stdout.write(f"\033[{len(DIFFICULTIES) + 3}A")
+                    sys.stdout.flush()
+                    continue
+            except UnicodeDecodeError:
+                pass
+            break
 
     def show_countdown(self):
         for i in ("3", "2", "1", "GO!"):
@@ -243,23 +267,33 @@ class SnakeGame:
 
     def pause(self):
         cx, cy = self.width // 2 - 5, self.height // 2
-        pause_msg = "  ⏸ PAUSED  "
-        sys.stdout.write(f"\033[{cy};{cx}H{C_TITLE}{pause_msg}{RESET}")
-        sys.stdout.flush()
+        blink = True
+        last_toggle = time.time()
         while True:
-            k = msvcrt.getch()
-            try:
-                c = k.decode("utf-8").lower()
-            except UnicodeDecodeError:
-                c = ""
-            if c == "p":
-                break
-            if c == "q" or k == b"\x1b":
-                self.show_game_over_screen()
-                sys.exit(0)
-            if c == "r":
-                self.reset()
-                return
+            now = time.time()
+            if now - last_toggle > 0.5:
+                blink = not blink
+                last_toggle = now
+            msg = "  ⏸ PAUSED  " if blink else "             "
+            sys.stdout.write(f"\033[{cy};{cx}H{C_TITLE}{msg}{RESET}")
+            sys.stdout.flush()
+            if msvcrt.kbhit():
+                k = msvcrt.getch()
+                try:
+                    c = k.decode("utf-8").lower()
+                except UnicodeDecodeError:
+                    c = ""
+                if c == "p":
+                    sys.stdout.write(f"\033[{cy};{cx}H{RESET}             {RESET}")
+                    sys.stdout.flush()
+                    break
+                if c == "q" or k == b"\x1b":
+                    self.show_game_over_screen()
+                    sys.exit(0)
+                if c == "r":
+                    self.reset()
+                    return
+            time.sleep(0.1)
 
     def update(self):
         self.direction = self.next_direction
@@ -309,6 +343,56 @@ class SnakeGame:
 
         return True
 
+    def death_animation(self):
+        for flash_idx in range(6):
+            sys.stdout.write("\033[H")
+            rows = []
+            pos_to_color = {}
+            for i, seg in enumerate(self.snake):
+                if i == 0:
+                    continue
+                pos_to_color[(seg[0], seg[1])] = RAINBOW[(i - 1) % len(RAINBOW)]
+            flash = flash_idx % 2 == 0
+            for y in range(self.height):
+                row = ""
+                skip = False
+                for x in range(self.width):
+                    if skip:
+                        skip = False
+                        continue
+                    if y == 0 and x == 0:
+                        row += f"{C_BORDER}╔{RESET}"
+                    elif y == 0 and x == self.width - 1:
+                        row += f"{C_BORDER}╗{RESET}"
+                    elif y == self.height - 1 and x == 0:
+                        row += f"{C_BORDER}╚{RESET}"
+                    elif y == self.height - 1 and x == self.width - 1:
+                        row += f"{C_BORDER}╝{RESET}"
+                    elif y == 0 or y == self.height - 1:
+                        row += f"{C_BORDER}═{RESET}"
+                    elif x == 0 or x == self.width - 1:
+                        row += f"{C_BORDER}║{RESET}"
+                    elif [y, x] == self.snake[0]:
+                        color = FG_BRIGHT_RED if flash else C_HEAD
+                        row += f"{color}●{RESET}"
+                    elif (y, x) in pos_to_color:
+                        color = FG_RED if flash else pos_to_color[(y, x)]
+                        row += f"{color}■{RESET}"
+                    elif [y, x] == self.food:
+                        row += f"{self.food_char}"
+                    else:
+                        row += " "
+                rows.append(row)
+            score_bar = (
+                f"{C_SCORE}  SCORE: {self.score:>4}"
+                f"{RESET}  │  {DIM}HIGH: {self.high_score}{RESET}"
+                f"  │  {DIM}LEN: {len(self.snake)}{RESET}"
+            )
+            sys.stdout.write("\n".join(rows))
+            sys.stdout.write(f"\n\n{score_bar}\n")
+            sys.stdout.flush()
+            time.sleep(0.15)
+
     def draw(self):
         sys.stdout.write("\033[H")
         border_color = C_BORDER
@@ -345,9 +429,11 @@ class SnakeGame:
                     row += f"{pos_to_color[(y, x)]}■{RESET}"
                 elif [y, x] == self.food:
                     row += f"{self.food_char}"
-                elif self.popup_pos and [y, x] == self.popup_pos:
-                    row += f"{FG_BRIGHT_YELLOW}+1{RESET}"
-                    skip = True
+                elif self.popup_pos:
+                    float_y = self.popup_pos[0] - (4 - self.popup_timer)
+                    if [y, x] == [float_y, self.popup_pos[1]]:
+                        row += f"{FG_BRIGHT_YELLOW}+1{RESET}"
+                        skip = True
                 else:
                     row += " "
             rows.append(row)
@@ -376,6 +462,7 @@ class SnakeGame:
             alive = self.update()
             self.draw()
             if not alive:
+                self.death_animation()
                 if not self.show_game_over_screen():
                     break
                 clear_screen()

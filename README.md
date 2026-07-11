@@ -1,93 +1,108 @@
-# 🐍 Snake 2.0
+# Snake
 
-A colorful terminal-based Snake game for **Windows** with rainbow visuals, multiple difficulty levels, animations, and persistent high scores.
+A polished, portfolio-ready Snake game built with Python and Pygame.
 
-![Python](https://img.shields.io/badge/python-3.6%2B-blue)
-![Platform](https://img.shields.io/badge/platform-windows-lightgrey)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+![Pygame](https://img.shields.io/badge/pygame-2.0%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
-## 🎮 Features
+## Features
 
 | Feature | Description |
 |---------|-------------|
-| **Rainbow Snake** | Body segments cycle through vibrant colors |
-| **4 Difficulty Levels** | Easy → Medium → Hard → INSANE |
-| **Food Animations** | Floating `+1` popup drifts upward on eat |
-| **Death Animation** | Snake flashes red before game over screen |
-| **Blinking Pause** | Pause indicator toggles every 0.5s |
-| **Score Milestones** | Toast notifications at 5, 10, 15, 20… |
-| **High Score** | Persisted to `.snake_highscore` across sessions |
-| **Game Over Art** | ASCII art screen with final stats |
-| **Countdown** | 3… 2… 1… GO! before each game |
+| **Input Buffer** | Queues up to 2 rapid direction changes per tick -- no accidental self-collisions |
+| **OOP Architecture** | Clean separation: `Config`, `Snake`, `Food`, `GameEngine` |
+| **Dynamic Speed** | Difficulty ramps every 5 foods eaten (capped at a configurable max) |
+| **Golden Apple** | Rare timed consumable (4 s) that awards triple points with a pulse animation |
+| **Game Modes** | Toggle between **Hard Walls** (death on edge) and **Wrap-Around** (teleport) |
+| **Persistent High Score** | Saved to a local file -- survives across sessions |
+| **Clean UI** | Menu screen, pause overlay, death animation, HUD with score/length/speed |
+| **Snake Eyes** | Head rendered with directional eyes for extra personality |
+| **Fully Configurable** | Every constant (grid size, colours, speed, etc.) lives in `config.py` |
 
 ---
 
-## 🎯 Difficulty Levels
+## Quick Start
 
-| Key | Level | Speed | Feel |
-|-----|-------|-------|------|
-| `1` | Easy | 1 | Relaxed, great for beginners |
-| `2` | Medium | 2 | Balanced default |
-| `3` | Hard | 3 | Fast, needs quick reflexes |
-| `4` | INSANE | 4 | Blazing fast — you've been warned |
+```bash
+# Install Pygame
+pip install pygame
 
-Select at the **start screen** by pressing `1`–`4`, then press **Enter** to begin.
+# Run the game
+python main.py
+```
 
 ---
 
-## ⌨️ Controls
+## Controls
 
 | Key | Action |
 |-----|--------|
-| `↑ ↓ ← →` / `W A S D` | Move snake |
+| `Arrow Keys` / `WASD` | Move snake |
+| `Enter` / `Space` | Select / Confirm |
 | `P` | Pause / Resume |
-| `R` | Restart |
-| `Q` / `Esc` | Quit |
+| `R` | Restart (on game over) |
+| `ESC` | Back to menu / Quit |
 
 ---
 
-## 🚀 Quick Start
-
-```bash
-python snake.py
-```
-
-That's it — no dependencies to install.
-
----
-
-## 📋 Requirements
-
-- **OS:** Windows (uses `msvcrt` for key input)
-- **Python:** 3.6+
-- **Terminal:** Any modern terminal that supports ANSI escape codes (Command Prompt, PowerShell, Windows Terminal)
-
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 snake.py/
-├── snake.py          # Main game
-├── .snake_highscore  # Persistent high score (auto-created)
+├── main.py            # Entry point
+├── config.py          # All tunable constants (grid, colours, speed, etc.)
+├── snake.py           # Snake entity with input buffer
+├── food.py            # Food spawning (regular + golden apple)
+├── game_engine.py     # Pygame loop, rendering, state management
+├── .snake_highscore   # Persistent high score (auto-created)
+├── .gitignore
 └── README.md
 ```
 
 ---
 
-## 🛠️ How It Works
+## Configuration
 
-- The game renders a grid using **ANSI escape codes** directly to stdout — no curses or external libraries.
-- Input is read with **`msvcrt.kbhit()` / `msvcrt.getch()`** for real-time non-blocking arrow key detection.
-- Speed increases by `0.002s` per food eaten, capped at `0.05s`.
-- High scores are saved to a local file in plain text.
+Open `config.py` and edit the `Config` dataclass. Key knobs:
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| `WINDOW_WIDTH` / `WINDOW_HEIGHT` | 800 x 600 | Window dimensions |
+| `GRID_SIZE` | 20 | Pixels per cell |
+| `INITIAL_SPEED` | 8.0 | Starting cells/second |
+| `SPEED_INCREMENT` | 0.4 | Speed added every N foods |
+| `SPEED_FOOD_INTERVAL` | 5 | Foods between speed-ups |
+| `MAX_SPEED` | 22.0 | Speed cap |
+| `GOLDEN_FOOD_CHANCE` | 0.12 | Golden apple spawn probability |
+| `GOLDEN_FOOD_DURATION` | 4.0 | Seconds before golden apple vanishes |
+| `GOLDEN_FOOD_POINTS` | 3 | Points for golden apple |
+| `INPUT_BUFFER_MAX` | 2 | Max queued direction changes |
 
 ---
 
-## 💡 Tips
+## Architecture
 
-- The snake moves **faster vertically** (UP/DOWN) — the game accounts for taller terminal cells by doubling the sleep time on horizontal moves.
-- Watch for the **milestone toasts** (`🔥 5!`, `🔥 10!`, …) that appear at the center of the screen.
-- Use **P** frequently on Hard/INSANE modes to catch your breath.
+- **`config.py`** -- Pure data. `Direction`, `GameMode`, and a `Config` dataclass holding every tunable value. Import `CFG` anywhere.
+- **`snake.py`** -- Framework-agnostic `Snake` class. Owns the body list, a `deque`-based input buffer, and `advance()` / `grow()` methods. No Pygame imports.
+- **`food.py`** -- Framework-agnostic `FoodManager`. Handles spawning logic (never on the snake), golden-apple lifetime, and removal on eat. No Pygame imports.
+- **`game_engine.py`** -- The only module that imports Pygame. Owns the window, main loop, input routing, rendering, state machine, HUD, overlays, and high-score persistence.
+
+---
+
+## Requirements
+
+- Python 3.8+
+- Pygame 2.0+
+
+```bash
+pip install pygame
+```
+
+---
+
+## License
+
+MIT

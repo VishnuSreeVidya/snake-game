@@ -82,7 +82,9 @@ class Snake:
                 return (nx, ny), False
 
         # --- self-collision -------------------------------------------
-        if (nx, ny) in self.body[:-1]:
+        # When growing, the tail stays so we must check the full body
+        check_body = self.body if self.grow_pending > 0 else self.body[:-1]
+        if (nx, ny) in check_body:
             return (nx, ny), False
 
         self.body.insert(0, (nx, ny))

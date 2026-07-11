@@ -47,6 +47,8 @@ class FoodManager:
         self.grid_w = grid_w
         self.grid_h = grid_h
         self.items: List[FoodItem] = []
+        self._paused: bool = False
+        self._pause_time: float = 0.0
 
     # ------------------------------------------------------------------
     # Public API
@@ -104,29 +106,49 @@ class FoodManager:
     def occupied_positions(self) -> Set[Tuple[int, int]]:
         return {f.pos for f in self.items}
 
+    def pause(self) -> None:
+        """Freeze all golden apple timers."""
+        if not self._paused:
+            self._paused = True
+            self._pause_time = time.monotonic()
+
+    def unpause(self) -> None:
+        """Shift golden apple spawn times to account for paused duration."""
+        if self._paused:
+            elapsed = time.monotonic() - self._pause_time
+            for f in self.items:
+                if f.is_golden:
+                    f.spawn_time += elapsed
+            self._paused = False
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _free_cells(self, snake_body: Set[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    def _random_free_cell(self, snake_body: Set[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+        """Find a random free cell using retry instead of full grid scan."""
         occupied = snake_body | self.occupied_positions()
-        return [
-            (x, y)
-            for x in range(self.grid_w)
-            for y in range(self.grid_h)
-            if (x, y) not in occupied
-        ]
+        total = self.grid_w * self.grid_h
+        if len(occupied) >= total:
+            return None
+        for _ in range(100):
+            x = random.randrange(self.grid_w)
+            y = random.randrange(self.grid_h)
+            if (x, y) not in occupied:
+                return (x, y)
+        # Fallback: scan (rare, near-full grid)
+        for x in range(self.grid_w):
+            for y in range(self.grid_h):
+                if (x, y) not in occupied:
+                    return (x, y)
+        return None
 
     def _spawn_regular(self, snake_body: Set[Tuple[int, int]]) -> None:
-        free = self._free_cells(snake_body)
-        if not free:
-            return
-        pos = random.choice(free)
-        self.items.append(FoodItem(pos, is_golden=False))
+        pos = self._random_free_cell(snake_body)
+        if pos is not None:
+            self.items.append(FoodItem(pos, is_golden=False))
 
     def _spawn_golden(self, snake_body: Set[Tuple[int, int]]) -> None:
-        free = self._free_cells(snake_body)
-        if not free:
-            return
-        pos = random.choice(free)
-        self.items.append(FoodItem(pos, is_golden=True))
+        pos = self._random_free_cell(snake_body)
+        if pos is not None:
+            self.items.append(FoodItem(pos, is_golden=True))

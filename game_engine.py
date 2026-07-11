@@ -4,9 +4,7 @@ This is the only module that imports ``pygame``; every other module stays
 framework-agnostic so it can be tested or re-used without Pygame.
 """
 
-import json
 import math
-import sys
 import time
 from typing import Optional
 
@@ -46,9 +44,11 @@ class GameEngine:
         self.title_font = pygame.font.SysFont("consolas", CFG.TITLE_FONT_SIZE, bold=True)
         self.small_font = pygame.font.SysFont("consolas", CFG.SMALL_FONT_SIZE)
 
-        # Derived grid dimensions
+        # Derived grid dimensions (reserve 40px at bottom for HUD)
+        self.HUD_HEIGHT = 40
         self.cols = CFG.WINDOW_WIDTH // CFG.GRID_SIZE
-        self.rows = CFG.WINDOW_HEIGHT // CFG.GRID_SIZE
+        self.rows = (CFG.WINDOW_HEIGHT - self.HUD_HEIGHT) // CFG.GRID_SIZE
+        self.grid_pixel_h = self.rows * CFG.GRID_SIZE
 
         # Entities
         self.snake = Snake(self.cols, self.rows)
@@ -140,14 +140,22 @@ class GameEngine:
         elif key in (pygame.K_RIGHT, pygame.K_d):
             self.snake.queue_direction("RIGHT")
         elif key == pygame.K_p:
+            self.food.pause()
             self.state = State.PAUSED
         elif key == pygame.K_ESCAPE:
+            if self.score > self.high_score:
+                self.high_score = self.score
+                self._save_high_score()
             self.state = State.MENU
 
     def _handle_paused_input(self, event: pygame.event.Event) -> None:
         if event.key in (pygame.K_p, pygame.K_RETURN, pygame.K_SPACE):
+            self.food.unpause()
             self.state = State.PLAYING
         elif event.key == pygame.K_ESCAPE:
+            if self.score > self.high_score:
+                self.high_score = self.score
+                self._save_high_score()
             self.state = State.MENU
 
     def _handle_gameover_input(self, event: pygame.event.Event) -> None:
@@ -167,17 +175,16 @@ class GameEngine:
             while self._tick_accumulator >= interval:
                 self._tick_accumulator -= interval
                 alive = self._game_tick()
-                if not alive:
+                if not alive or self.state != State.PLAYING:
                     break
 
-        # Tick toast timer
-        if self._toast_timer > 0:
-            self._toast_timer -= dt
-            if self._toast_timer <= 0:
-                self._toast_text = None
+            # Tick toast timer (only while playing)
+            if self._toast_timer > 0:
+                self._toast_timer -= dt
+                if self._toast_timer <= 0:
+                    self._toast_text = None
 
-        # Tick food manager (expire golden apples, ensure regular exists)
-        if self.state == State.PLAYING:
+            # Tick food manager (expire golden apples, ensure regular exists)
             self.food.tick(set(self.snake.body))
 
         # Death animation timer
@@ -186,7 +193,7 @@ class GameEngine:
 
     def _game_tick(self) -> bool:
         """Advance the snake one cell.  Returns False on death."""
-        alive = self.snake.advance(wrap=(self.game_mode == GameMode.WRAP_AROUND))
+        _pos, alive = self.snake.advance(wrap=(self.game_mode == GameMode.WRAP_AROUND))
         if not alive:
             self._on_death()
             return False
@@ -208,8 +215,12 @@ class GameEngine:
 
     def _check_milestone(self) -> None:
         milestones = {5, 10, 15, 20, 25, 30, 40, 50, 75, 100}
-        if self.score in milestones:
-            self._show_toast(f"{self.score}!", 1.5)
+        # Check all milestones between previous score and current (handles golden apple jumps)
+        prev = self.score - (CFG.GOLDEN_FOOD_POINTS if self.score >= CFG.GOLDEN_FOOD_POINTS else CFG.REGULAR_FOOD_POINTS)
+        for m in milestones:
+            if prev < m <= self.score:
+                self._show_toast(f"{m}!", 1.5)
+                break
 
     def _show_toast(self, text: str, duration: float = 1.5) -> None:
         self._toast_text = text
@@ -226,6 +237,7 @@ class GameEngine:
     def _start_game(self) -> None:
         self.snake.reset()
         self.food.reset(set(self.snake.body))
+        self.food.unpause()
         self.score = 0
         self.foods_eaten = 0
         self.speed = CFG.INITIAL_SPEED
@@ -266,13 +278,10 @@ class GameEngine:
     # ---- game field --------------------------------------------------
 
     def _draw_game(self) -> None:
-        # Border
-        border_rect = pygame.Rect(
-            0, 0,
-            self.cols * CFG.GRID_SIZE,
-            self.rows * CFG.GRID_SIZE,
-        )
-        pygame.draw.rect(self.screen, CFG.BORDER_COLOR, border_rect, 2)
+        # Border (only in hard-walls mode)
+        if self.game_mode == GameMode.HARD_WALLS:
+            border_rect = pygame.Rect(0, 0, self.cols * CFG.GRID_SIZE, self.grid_pixel_h)
+            pygame.draw.rect(self.screen, CFG.BORDER_COLOR, border_rect, 2)
 
         # Food
         for item in self.food.items:
@@ -319,11 +328,11 @@ class GameEngine:
         if self._toast_text:
             surf = self.font.render(self._toast_text, True, CFG.GOLDEN_FOOD_COLOR)
             rx = (self.cols * CFG.GRID_SIZE - surf.get_width()) // 2
-            ry = (self.rows * CFG.GRID_SIZE - surf.get_height()) // 2
+            ry = (self.grid_pixel_h - surf.get_height()) // 2
             self.screen.blit(surf, (rx, ry))
 
     def _draw_hud(self) -> None:
-        y = self.rows * CFG.GRID_SIZE + 4
+        y = self.grid_pixel_h + 6
         score_surf = self.font.render(
             f"SCORE: {self.score}", True, CFG.ACCENT_COLOR
         )
@@ -361,7 +370,7 @@ class GameEngine:
 
     def _draw_pause_overlay(self) -> None:
         overlay = pygame.Surface(
-            (self.cols * CFG.GRID_SIZE, self.rows * CFG.GRID_SIZE),
+            (self.cols * CFG.GRID_SIZE, self.grid_pixel_h),
             pygame.SRCALPHA,
         )
         overlay.fill((0, 0, 0, 120))
@@ -369,11 +378,11 @@ class GameEngine:
 
         txt = self.title_font.render("PAUSED", True, CFG.ACCENT_COLOR)
         rx = (self.cols * CFG.GRID_SIZE - txt.get_width()) // 2
-        ry = (self.rows * CFG.GRID_SIZE - txt.get_height()) // 2
+        ry = (self.grid_pixel_h - txt.get_height()) // 2
         self.screen.blit(txt, (rx, ry))
 
         sub = self.small_font.render(
-            "Press P to resume  |  ESC for menu", True, CFG.DIM_TEXT_COLOR
+            "P / Enter / Space to resume  |  ESC for menu", True, CFG.DIM_TEXT_COLOR
         )
         self.screen.blit(
             sub,
@@ -387,7 +396,7 @@ class GameEngine:
 
     def _draw_game_over(self) -> None:
         gw = self.cols * CFG.GRID_SIZE
-        gh = self.rows * CFG.GRID_SIZE
+        gh = self.grid_pixel_h
         overlay = pygame.Surface((gw, gh), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         self.screen.blit(overlay, (0, 0))
@@ -451,7 +460,7 @@ class GameEngine:
 
     def _draw_menu(self) -> None:
         gw = self.cols * CFG.GRID_SIZE
-        gh = self.rows * CFG.GRID_SIZE
+        gh = self.grid_pixel_h
 
         # Title
         title = self.title_font.render("SNAKE", True, CFG.SNAKE_HEAD_COLOR)

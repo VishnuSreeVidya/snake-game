@@ -201,7 +201,10 @@ class GameEngine:
         eaten = self.food.on_food_eaten(self.snake.head, set(self.snake.body))
         if eaten is not None:
             self.snake.grow()
-            self.score += eaten.points
+            points = eaten.points
+            if self.game_mode == GameMode.WRAP_AROUND:
+                points *= CFG.WRAP_SCORE_MULTIPLIER
+            self.score += points
             self.foods_eaten += 1
             self._maybe_increase_speed()
             self._check_milestone()
@@ -240,7 +243,10 @@ class GameEngine:
         self.food.unpause()
         self.score = 0
         self.foods_eaten = 0
+        # Apply wrap-mode speed bonus
         self.speed = CFG.INITIAL_SPEED
+        if self.game_mode == GameMode.WRAP_AROUND:
+            self.speed *= CFG.WRAP_SPEED_MULTIPLIER
         self._tick_accumulator = 0.0
         self._toast_text = None
         self._toast_timer = 0.0
@@ -343,10 +349,11 @@ class GameEngine:
             f"LEN: {self.snake.length}", True, CFG.DIM_TEXT_COLOR
         )
         mode_label = (
-            "WRAP" if self.game_mode == GameMode.WRAP_AROUND else "WALLS"
+            f"WRAP x{CFG.WRAP_SCORE_MULTIPLIER}" if self.game_mode == GameMode.WRAP_AROUND else "WALLS"
         )
+        mode_color = CFG.GOLDEN_FOOD_COLOR if self.game_mode == GameMode.WRAP_AROUND else CFG.DIM_TEXT_COLOR
         mode_surf = self.small_font.render(
-            f"MODE: {mode_label}", True, CFG.DIM_TEXT_COLOR
+            f"MODE: {mode_label}", True, mode_color
         )
         speed_surf = self.small_font.render(
             f"SPD: {self.speed:.1f}", True, CFG.DIM_TEXT_COLOR
@@ -477,9 +484,10 @@ class GameEngine:
         )
 
         # Menu items
-        mode_label = (
-            f"Mode: {'Wrap-Around' if self.game_mode == GameMode.WRAP_AROUND else 'Hard Walls'}"
-        )
+        if self.game_mode == GameMode.WRAP_AROUND:
+            mode_label = f"Mode: Wrap-Around  (x{CFG.WRAP_SCORE_MULTIPLIER} pts, {int(CFG.WRAP_SPEED_MULTIPLIER*100)}% spd)"
+        else:
+            mode_label = "Mode: Hard Walls"
         items = [mode_label, "Start Game", "Quit"]
         start_y = gh // 2 + 20
         for i, label in enumerate(items):

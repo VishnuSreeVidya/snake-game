@@ -97,6 +97,10 @@ class Config:
     INITIAL_SNAKE_LENGTH: int = 4
     INPUT_BUFFER_MAX: int = 2           # max queued direction changes
 
+    # -- Wrap-Around mode bonuses -------------------------------------------
+    WRAP_SPEED_MULTIPLIER: float = 1.3  # 30% faster base speed
+    WRAP_SCORE_MULTIPLIER: int = 2      # double points
+
     # -- UI -----------------------------------------------------------------
     FONT_SIZE: int = 24
     TITLE_FONT_SIZE: int = 48

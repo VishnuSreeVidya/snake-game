@@ -160,16 +160,6 @@ Open `config.py` and edit the `Config` dataclass:
 | **Speed** | Normal | +30% faster |
 | **Difficulty** | Classic | High risk, high reward |
 
----
-
-<div align="center">
-
-### 🐍 Built with Python & Pygame
-
-</div>
-
----
-
 ## 📝 License
 
 MIT License — feel free to fork, modify, and share!

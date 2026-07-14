@@ -166,8 +166,6 @@ Open `config.py` and edit the `Config` dataclass:
 
 ### 🐍 Built with Python & Pygame
 
-*Star ⭐ this repo if you enjoyed the game!*
-
 </div>
 
 ---

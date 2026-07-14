@@ -207,7 +207,7 @@ class GameEngine:
             self.score += points
             self.foods_eaten += 1
             self._maybe_increase_speed()
-            self._check_milestone()
+            self._check_milestone(points)
         return True
 
     def _maybe_increase_speed(self) -> None:
@@ -216,10 +216,9 @@ class GameEngine:
                 self.speed + CFG.SPEED_INCREMENT, CFG.MAX_SPEED
             )
 
-    def _check_milestone(self) -> None:
+    def _check_milestone(self, points_earned: int) -> None:
         milestones = {5, 10, 15, 20, 25, 30, 40, 50, 75, 100}
-        # Check all milestones between previous score and current (handles golden apple jumps)
-        prev = self.score - (CFG.GOLDEN_FOOD_POINTS if self.score >= CFG.GOLDEN_FOOD_POINTS else CFG.REGULAR_FOOD_POINTS)
+        prev = self.score - points_earned
         for m in milestones:
             if prev < m <= self.score:
                 self._show_toast(f"{m}!", 1.5)
@@ -286,8 +285,12 @@ class GameEngine:
     def _draw_game(self) -> None:
         # Border (only in hard-walls mode)
         if self.game_mode == GameMode.HARD_WALLS:
-            border_rect = pygame.Rect(0, 0, self.cols * CFG.GRID_SIZE, self.grid_pixel_h)
-            pygame.draw.rect(self.screen, CFG.BORDER_COLOR, border_rect, 2)
+            bw = 3
+            border_rect = pygame.Rect(
+                bw // 2, bw // 2,
+                self.cols * CFG.GRID_SIZE - bw, self.grid_pixel_h - bw,
+            )
+            pygame.draw.rect(self.screen, CFG.BORDER_COLOR, border_rect, bw)
 
         # Food
         for item in self.food.items:
